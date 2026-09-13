@@ -103,12 +103,18 @@ export function Shell({
               <Flex
                 component={Link}
                 href="/"
-                gap="xs"
+                flex={1}
+                align="center"
+                gap={8}
                 display={{ base: "none", tablet: "flex" }}
                 c="text.primary"
                 td="none"
+                px={{
+                  base: 0,
+                  laptop: "xl",
+                }}
               >
-                <Logo size={30} />
+                <Logo size={34} />
                 <AppShell.Label>
                   <Flex direction="column" gap="xxs" c="text.primary">
                     <Wordmark height={14} title={labels.brand} />
