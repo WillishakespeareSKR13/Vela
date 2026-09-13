@@ -1,0 +1,34 @@
+{
+  "name": "monitor-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agente de monitorizacion (captura de pantalla + soporte remoto) para estaciones Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.5",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.tuempresa.monitoragent",
+    "productName": "MonitorAgent",
+    "asarUnpack": [
+      "node_modules/@nut-tree-fork/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "MonitorAgent-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true
+    }
+  }
+}

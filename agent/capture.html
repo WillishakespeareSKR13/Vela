@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Stellaria Agent — capture</title>
+  </head>
+  <body>
+    <pre id="log" style="font-family: monospace; font-size: 12px"></pre>
+    <script>
+      'use strict';
+
+      // ---- Config desde la query que pasa main.js ------------------------
+      const params = new URLSearchParams(location.search);
+      const SERVER = params.get('server') || 'ws://localhost:8080';
+      const NAME = params.get('name') || 'PC';
+      const SHOW_INDICATOR = params.get('indicator') === '1';
+
+      const logEl = document.getElementById('log');
+      const log = (...a) => {
+        console.log(...a);
+        logEl.textContent = (a.join(' ') + '\n' + logEl.textContent).slice(0, 4000);
+      };
+
+      // ---- Presets de calidad -------------------------------------------
+      const QUALITY = {
+        alta: { maxBitrate: 8_000_000, maxFramerate: 30, scale: 1 },
+        media: { maxBitrate: 3_000_000, maxFramerate: 20, scale: 1 },
+        baja: { maxBitrate: 1_000_000, maxFramerate: 12, scale: 1.5 },
+      };
+      let currentQuality = 'alta';
+
+      // ---- Estado --------------------------------------------------------
+      let ws = null;
+      let myId = null;
+      let stream = null;
+      /** viewerId -> { pc, channel } */
+      const peers = new Map();
+      let indicatorTimer = null;
+
+      // ---- Captura de pantalla ------------------------------------------
+      async function ensureStream() {
+        if (stream) return stream;
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { frameRate: { ideal: 30, max: 30 } },
+          audio: false,
+        });
+        const track = stream.getVideoTracks()[0];
+        if ('contentHint' in track) track.contentHint = 'text'; // nitidez de texto
+        log('captura iniciada:', track.getSettings().width + 'x' + track.getSettings().height);
+        return stream;
+      }
+
+      async function applyQuality(pc, preset) {
+        const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'video');
+        if (!sender) return;
+        const p = sender.getParameters();
+        if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+        const q = QUALITY[preset] || QUALITY.alta;
+        p.encodings[0].maxBitrate = q.maxBitrate;
+        p.encodings[0].maxFramerate = q.maxFramerate;
+        p.encodings[0].scaleResolutionDownBy = q.scale;
+        p.degradationPreference = 'maintain-framerate';
+        try {
+          await sender.setParameters(p);
+        } catch (e) {
+          log('setParameters:', e.message);
+        }
+      }
+
+      // ---- WebSocket / senalizacion -------------------------------------
+      function send(obj) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+      }
+
+      function connect() {
+        ws = new WebSocket(SERVER);
+        ws.onopen = () => {
+          log('conectado a', SERVER);
+          send({ type: 'register', role: 'agent', name: NAME });
+        };
+        ws.onclose = () => {
+          log('ws cerrado, reintento en 2s');
+          for (const { pc } of peers.values()) pc.close();
+          peers.clear();
+          setTimeout(connect, 2000);
+        };
+        ws.onerror = () => ws.close();
+        ws.onmessage = (ev) => handle(JSON.parse(ev.data));
+      }
+
+      async function handle(msg) {
+        switch (msg.type) {
+          case 'welcome':
+            myId = msg.id;
+            break;
+
+          case 'subscribe':
+            await createPeer(msg.viewerId);
+            break;
+
+          case 'answer': {
+            const p = peers.get(msg.from);
+            if (p) await p.pc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+            break;
+          }
+
+          case 'ice': {
+            const p = peers.get(msg.from);
+            if (p && msg.candidate) {
+              try {
+                await p.pc.addIceCandidate(msg.candidate);
+              } catch (e) {
+                log('addIceCandidate:', e.message);
+              }
+            }
+            break;
+          }
+
+          case 'unsubscribe':
+          case 'peer-left': {
+            const id = msg.viewerId || msg.id;
+            const p = peers.get(id);
+            if (p) {
+              p.pc.close();
+              peers.delete(id);
+            }
+            break;
+          }
+        }
+      }
+
+      async function createPeer(viewerId) {
+        await ensureStream();
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        });
+
+        // Canal de control: el visor manda mouse/teclado y presets por aqui.
+        const channel = pc.createDataChannel('ctrl', { ordered: true });
+        channel.onmessage = (e) => onControlMessage(JSON.parse(e.data));
+
+        for (const track of stream.getVideoTracks()) pc.addTrack(track, stream);
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) send({ type: 'ice', to: viewerId, candidate: e.candidate });
+        };
+        pc.onconnectionstatechange = () => {
+          if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
+            pc.close();
+            peers.delete(viewerId);
+          }
+        };
+
+        peers.set(viewerId, { pc, channel });
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await applyQuality(pc, currentQuality);
+        send({ type: 'offer', to: viewerId, sdp: offer.sdp });
+        log('offer -> visor', viewerId);
+      }
+
+      // ---- Mensajes de control del visor --------------------------------
+      function onControlMessage(m) {
+        if (m.kind === 'input') {
+          window.agentAPI.applyInput(m);
+          pingIndicator();
+        } else if (m.kind === 'config' && m.quality) {
+          currentQuality = m.quality;
+          for (const { pc } of peers.values()) applyQuality(pc, currentQuality);
+          log('calidad ->', currentQuality);
+        }
+      }
+
+      // El indicador en pantalla solo se enciende si SHOW_INDICATOR esta activo.
+      function pingIndicator() {
+        if (!SHOW_INDICATOR) return;
+        window.agentAPI.setControlIndicator(true);
+        clearTimeout(indicatorTimer);
+        indicatorTimer = setTimeout(() => window.agentAPI.setControlIndicator(false), 1500);
+      }
+
+      connect();
+    </script>
+  </body>
+</html>
