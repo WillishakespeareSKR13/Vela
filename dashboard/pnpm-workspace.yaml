@@ -1,0 +1,10 @@
+allowBuilds:
+  sharp: false
+# pnpm 11 retiene lo publicado hace poco (minimumReleaseAge) e instala la version
+# anterior sin avisar; Nebula 1.1.14 se publico el 2026-09-13 y hay que excluirla.
+minimumReleaseAgeExclude:
+  - "@stellaria/nebula-web"
+  - "@stellaria/nebula-themes"
+  - "@stellaria/nebula-tokens"
+  - "@stellaria/nebula-icons"
+  - "@stellaria/nebula-hooks"

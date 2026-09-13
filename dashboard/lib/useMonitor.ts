@@ -4,6 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type Quality = "alta" | "media" | "baja";
 
+/**
+ * Estado del canal de senalizacion. `unauthorized` es distinto de `offline`:
+ * el servidor esta, pero rechazo el token, y reintentar no lo arregla.
+ */
+export type MonitorStatus = "connecting" | "online" | "offline" | "unauthorized";
+
 export interface AgentInfo {
   id: string;
   name: string;
@@ -31,16 +37,22 @@ interface Peer {
   channel: RTCDataChannel | null;
 }
 
-const ICE: RTCConfiguration = {
+// Respaldo mientras no llega la config ICE del servidor (STUN publico, LAN).
+const DEFAULT_ICE: RTCConfiguration = {
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 };
 
 /**
  * Gestiona la conexion del visor: una sesion WebRTC por agente, sus flujos de
  * video, las estadisticas de calidad y el canal para enviar entrada y calidad.
+ *
+ * `token` es el secreto compartido que valida el servidor de senalizacion en
+ * `register`. Tras registrarse, el servidor entrega los `iceServers`
+ * (STUN/TURN) que se usan en cada RTCPeerConnection.
  */
-export function useMonitor(serverUrl: string) {
-  const [connected, setConnected] = useState(false);
+export function useMonitor(serverUrl: string, token = "") {
+  const [status, setStatus] = useState<MonitorStatus>("connecting");
+  const [attempt, setAttempt] = useState(0);
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [streams, setStreams] = useState<Record<string, MediaStream>>({});
   const [stats, setStats] = useState<Record<string, TileStats>>({});
@@ -50,6 +62,7 @@ export function useMonitor(serverUrl: string) {
   const subscribedRef = useRef<Set<string>>(new Set());
   const prevRef = useRef<Map<string, { bytes: number; frames: number; ts: number }>>(new Map());
   const qualityRef = useRef<Quality>("alta");
+  const iceRef = useRef<RTCConfiguration>(DEFAULT_ICE);
 
   const send = useCallback((obj: unknown) => {
     const ws = wsRef.current;
@@ -83,7 +96,7 @@ export function useMonitor(serverUrl: string) {
   // Recibe la oferta del agente y responde (el agente es el oferente).
   const onOffer = useCallback(
     async (agentId: string, sdp: string) => {
-      const pc = new RTCPeerConnection(ICE);
+      const pc = new RTCPeerConnection(iceRef.current);
       const peer: Peer = { pc, channel: null };
       peersRef.current.set(agentId, peer);
 
@@ -111,25 +124,41 @@ export function useMonitor(serverUrl: string) {
   // ---- Ciclo de conexion / reconexion --------------------------------------
   useEffect(() => {
     let closedByUs = false;
+    let unauthorized = false;
     let retry: ReturnType<typeof setTimeout> | undefined;
 
     function connect() {
+      setStatus((s) => (s === "online" ? "connecting" : s));
       const ws = new WebSocket(serverUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        setConnected(true);
-        send({ type: "register", role: "viewer", name: "Dashboard" });
+        send({ type: "register", role: "viewer", name: "Dashboard", token });
       };
       ws.onclose = () => {
-        setConnected(false);
+        setStatus(unauthorized ? "unauthorized" : "offline");
+        setAgents([]);
         for (const id of [...peersRef.current.keys()]) teardown(id);
-        if (!closedByUs) retry = setTimeout(connect, 2000);
+        // Con token rechazado se reintenta despacio: no es un corte de red.
+        if (!closedByUs) retry = setTimeout(connect, unauthorized ? 30000 : 2000);
       };
       ws.onerror = () => ws.close();
       ws.onmessage = async (ev) => {
         const msg = JSON.parse(ev.data);
         switch (msg.type) {
+          case "registered": {
+            unauthorized = false;
+            setStatus("online");
+            if (Array.isArray(msg.iceServers) && msg.iceServers.length) {
+              const cfg: RTCConfiguration = { iceServers: msg.iceServers };
+              if (msg.iceTransportPolicy) cfg.iceTransportPolicy = msg.iceTransportPolicy;
+              iceRef.current = cfg;
+            }
+            break;
+          }
+          case "error":
+            if (msg.code === "unauthorized") unauthorized = true;
+            break;
           case "agents":
             setAgents(msg.agents);
             for (const a of msg.agents as AgentInfo[]) subscribe(a.id);
@@ -163,7 +192,14 @@ export function useMonitor(serverUrl: string) {
       for (const id of [...peersRef.current.keys()]) teardown(id);
       wsRef.current?.close();
     };
-  }, [serverUrl, send, subscribe, onOffer, teardown]);
+  }, [serverUrl, token, attempt, send, subscribe, onOffer, teardown]);
+
+  // Reintento manual desde la lamina de error: remonta el ciclo de conexion.
+  const retry = useCallback(() => {
+    setStatus("connecting");
+    wsRef.current?.close();
+    setAttempt((n) => n + 1);
+  }, []);
 
   // ---- Bucle de estadisticas (FPS, bitrate, resolucion) --------------------
   useEffect(() => {
@@ -220,5 +256,5 @@ export function useMonitor(serverUrl: string) {
     }
   }, []);
 
-  return { connected, agents, streams, stats, sendInput, setQualityAll };
+  return { status, agents, streams, stats, sendInput, setQualityAll, retry };
 }
