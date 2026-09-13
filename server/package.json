@@ -1,14 +1,18 @@
 {
-  "name": "monitor-signaling-server",
+  "name": "vela-signaling-server",
   "version": "0.1.0",
   "private": true,
-  "description": "Servidor de senalizacion WebRTC para el sistema de monitorizacion",
+  "description": "Vela: servidor de senalizacion WebRTC (solo SDP/ICE)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "test": "node test/smoke.js"
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
