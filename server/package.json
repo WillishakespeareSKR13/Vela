@@ -1,0 +1,14 @@
+{
+  "name": "monitor-signaling-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servidor de senalizacion WebRTC para el sistema de monitorizacion",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
