@@ -1,5 +1,5 @@
 {
-  "server": "wss://vela-server.example.com",
+  "server": "wss://api.vela.stellaria.app",
   "token": "el-mismo-VELA_TOKEN-del-servidor",
   "name": "Recepcion-01",
   "showIndicator": false

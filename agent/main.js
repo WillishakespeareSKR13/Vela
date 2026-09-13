@@ -70,7 +70,10 @@ const env = (name, key, fallback) =>
   process.env['STELLARIA_' + name] ??
   (FILE_CONFIG[key] !== undefined && FILE_CONFIG[key] !== null ? String(FILE_CONFIG[key]) : fallback);
 
-const SERVER_URL = env('SERVER', 'server', process.env.MONITOR_SERVER || 'ws://localhost:8080');
+// Servidor por defecto: produccion. Asi el instalador sale apuntando bien y
+// solo hace falta el token; en desarrollo se pone VELA_SERVER=ws://localhost:8080.
+const DEFAULT_SERVER = 'wss://api.vela.stellaria.app';
+const SERVER_URL = env('SERVER', 'server', process.env.MONITOR_SERVER || DEFAULT_SERVER);
 const PC_NAME = env('NAME', 'name', os.hostname());
 const TOKEN = env('TOKEN', 'token', '');
 const SHOW_INDICATOR = /^(1|true|yes|on)$/i.test(env('SHOW_INDICATOR', 'showIndicator', ''));

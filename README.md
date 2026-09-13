@@ -100,7 +100,7 @@ antiguas):
 
 | Variable | Por defecto | Qué hace |
 | --- | --- | --- |
-| `VELA_SERVER` | `ws://localhost:8080` | URL del servidor de señalización |
+| `VELA_SERVER` | `wss://api.vela.stellaria.app` | URL del servidor de señalización (en desarrollo, `ws://localhost:8080`) |
 | `VELA_TOKEN` | — | Token compartido (el mismo que `VELA_TOKEN` del servidor) |
 | `VELA_NAME` | hostname | Nombre que se ve en el dashboard |
 | `VELA_SHOW_INDICATOR` | `0` | `1` muestra el aviso en pantalla al controlar |
