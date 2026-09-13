@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vela Agent</title>
+    <link rel="stylesheet" href="assets/brand.css" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--text);
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 20px 20px 12px;
+        -webkit-app-region: drag;
+      }
+      header img { width: 40px; height: 40px; }
+      header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+      header p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+      main { flex: 1; padding: 4px 20px 0; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+      section {
+        background: var(--raised);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+      section h2 {
+        margin: 0 0 10px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
+      .row + .row { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+      .row .k { color: var(--muted); font-size: 13px; }
+      .row .v { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; text-align: right; word-break: break-all; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+      .pill.online::before { background: var(--primary-400); }
+      .pill.offline::before, .pill.unauthorized::before { background: var(--accent-500); }
+      .pill.connecting::before { background: var(--muted); animation: p 1s infinite; }
+      @keyframes p { 50% { opacity: 0.3; } }
+      button {
+        font: inherit; font-weight: 600; font-size: 13px;
+        border: 0; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+        color: var(--text); background: rgba(255, 255, 255, 0.08);
+      }
+      button:hover { background: rgba(255, 255, 255, 0.13); }
+      button.primary {
+        color: #0b0d10;
+        background: linear-gradient(var(--brand-angle), var(--brand-from), var(--brand-to));
+      }
+      button.primary:hover { filter: brightness(1.08); }
+      button.ghost { background: transparent; color: var(--muted); }
+      button.ghost:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+      button.sm { padding: 6px 10px; font-size: 12px; }
+      .ok { color: var(--primary-400); font-weight: 600; font-size: 12px; }
+      .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+      footer { display: flex; justify-content: space-between; gap: 8px; padding: 14px 20px 18px; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="assets/logo.png" alt="" />
+      <div>
+        <h1>Vela Agent</h1>
+        <p id="meta">—</p>
+      </div>
+    </header>
+
+    <main>
+      <section id="perms" hidden>
+        <h2>Permisos de macOS</h2>
+        <div class="row">
+          <div>
+            <div>Grabación de pantalla</div>
+            <div class="k">Para que el panel vea este equipo.</div>
+          </div>
+          <span id="perm-screen-ok" class="ok" hidden>Concedido</span>
+          <button id="perm-screen" class="primary sm">Conceder</button>
+        </div>
+        <div class="row">
+          <div>
+            <div>Accesibilidad</div>
+            <div class="k">Para el soporte remoto con ratón y teclado.</div>
+          </div>
+          <span id="perm-acc-ok" class="ok" hidden>Concedido</span>
+          <button id="perm-acc" class="primary sm">Conceder</button>
+        </div>
+        <p class="hint">
+          Se abre Ajustes del Sistema → Privacidad y seguridad. Marca «Vela Agent» y vuelve: esta
+          ventana se actualiza sola. Si ya estaba marcado, quítalo y vuelve a marcarlo.
+        </p>
+      </section>
+
+      <section>
+        <h2>Conexión</h2>
+        <div class="row"><span class="k">Estado</span><span id="conn" class="pill connecting">conectando</span></div>
+        <div class="row"><span class="k">Servidor</span><span id="server" class="v">—</span></div>
+        <div class="row"><span class="k">Este equipo</span><span id="name" class="v">—</span></div>
+        <div class="row"><span class="k">Token</span><span id="token" class="v">—</span></div>
+        <div class="row"><span class="k">Visores conectados</span><span id="viewers" class="v">0</span></div>
+        <p id="token-hint" class="hint" hidden>
+          Sin token el servidor rechaza el registro. Escribe <code>config.json</code> (abajo) con el
+          token del panel y reinicia el agente.
+        </p>
+      </section>
+
+      <section>
+        <h2>Configuración</h2>
+        <div class="row">
+          <span id="config" class="v" style="text-align: left"></span>
+          <button id="open-config" class="sm">Abrir carpeta</button>
+        </div>
+        <p class="hint">
+          Este equipo puede ser supervisado y controlado desde el panel de Vela mientras el agente
+          está en marcha. El agente no se oculta: vive en la barra de menús / bandeja del sistema.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <button id="quit" class="ghost">Salir del agente</button>
+      <button id="hide" class="primary">Ocultar en la bandeja</button>
+    </footer>
+
+    <script>
+      'use strict';
+      const $ = (id) => document.getElementById(id);
+      const LABELS = {
+        connecting: 'conectando',
+        online: 'en línea',
+        offline: 'sin conexión',
+        unauthorized: 'token rechazado',
+      };
+
+      function render(s) {
+        $('meta').textContent = `v${s.version} · ${s.platform === 'darwin' ? 'macOS' : s.platform === 'win32' ? 'Windows' : s.platform}`;
+        $('conn').textContent = LABELS[s.connection] || s.connection;
+        $('conn').className = 'pill ' + s.connection;
+        $('server').textContent = s.server;
+        $('name').textContent = s.name;
+        $('token').textContent = s.hasToken ? '••••••••' : 'sin token';
+        $('token-hint').hidden = s.hasToken;
+        $('viewers').textContent = String(s.viewers || 0);
+        $('config').textContent = s.configFile;
+
+        const mac = s.platform === 'darwin';
+        $('perms').hidden = !mac;
+        if (mac) {
+          $('perm-screen').hidden = s.permissions.screen;
+          $('perm-screen-ok').hidden = !s.permissions.screen;
+          $('perm-acc').hidden = s.permissions.accessibility;
+          $('perm-acc-ok').hidden = !s.permissions.accessibility;
+        }
+      }
+
+      window.statusAPI.get().then(render);
+      window.statusAPI.onState(render);
+      $('perm-screen').onclick = () => window.statusAPI.requestPermission('screen');
+      $('perm-acc').onclick = () => window.statusAPI.requestPermission('accessibility');
+      $('open-config').onclick = () => window.statusAPI.openConfig();
+      $('hide').onclick = () => window.statusAPI.hide();
+      $('quit').onclick = () => window.statusAPI.quit();
+    </script>
+  </body>
+</html>

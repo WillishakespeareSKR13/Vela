@@ -1,0 +1,6 @@
+{
+  "server": "wss://vela-server.example.com",
+  "token": "el-mismo-VELA_TOKEN-del-servidor",
+  "name": "Recepcion-01",
+  "showIndicator": false
+}

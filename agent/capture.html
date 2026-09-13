@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Stellaria Agent — capture</title>
+    <title>Vela Agent — capture</title>
   </head>
   <body>
     <pre id="log" style="font-family: monospace; font-size: 12px"></pre>
@@ -13,8 +13,10 @@
       const params = new URLSearchParams(location.search);
       const SERVER = params.get('server') || 'ws://localhost:8080';
       const NAME = params.get('name') || 'PC';
+      const TOKEN = params.get('token') || '';
       const SHOW_INDICATOR = params.get('indicator') === '1';
 
+      const report = (patch) => window.agentAPI && window.agentAPI.reportStatus && window.agentAPI.reportStatus(patch);
       const logEl = document.getElementById('log');
       const log = (...a) => {
         console.log(...a);
@@ -33,6 +35,11 @@
       let ws = null;
       let myId = null;
       let stream = null;
+      // Config ICE (STUN/TURN) que entrega el servidor al registrarse. Hasta
+      // entonces, STUN publico como respaldo para pruebas en LAN.
+      let rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      // Si el servidor rechazo el token no tiene sentido reintentar cada 2s.
+      let unauthorized = false;
       /** viewerId -> { pc, channel } */
       const peers = new Map();
       let indicatorTimer = null;
@@ -74,15 +81,18 @@
 
       function connect() {
         ws = new WebSocket(SERVER);
+        report({ connection: 'connecting', viewers: 0 });
         ws.onopen = () => {
           log('conectado a', SERVER);
-          send({ type: 'register', role: 'agent', name: NAME });
+          send({ type: 'register', role: 'agent', name: NAME, token: TOKEN });
         };
-        ws.onclose = () => {
-          log('ws cerrado, reintento en 2s');
+        ws.onclose = (ev) => {
+          const wait = unauthorized ? 30000 : 2000;
+          log(`ws cerrado (${ev.code}), reintento en ${wait / 1000}s`);
           for (const { pc } of peers.values()) pc.close();
           peers.clear();
-          setTimeout(connect, 2000);
+          report({ connection: unauthorized ? 'unauthorized' : 'offline', viewers: 0 });
+          setTimeout(connect, wait);
         };
         ws.onerror = () => ws.close();
         ws.onmessage = (ev) => handle(JSON.parse(ev.data));
@@ -92,6 +102,25 @@
         switch (msg.type) {
           case 'welcome':
             myId = msg.id;
+            break;
+
+          case 'registered':
+            unauthorized = false;
+            if (Array.isArray(msg.iceServers) && msg.iceServers.length) {
+              rtcConfig = { iceServers: msg.iceServers };
+              if (msg.iceTransportPolicy) rtcConfig.iceTransportPolicy = msg.iceTransportPolicy;
+            }
+            log('registrado como', myId, '· ice:', msg.iceServers.map((s) => s.urls).flat().join(' '));
+            report({ connection: 'online' });
+            break;
+
+          case 'error':
+            if (msg.code === 'unauthorized') {
+              unauthorized = true;
+              log('el servidor rechazo el token (VELA_TOKEN). Revisa la configuracion.');
+            } else {
+              log('error del servidor:', msg.message || msg.code);
+            }
             break;
 
           case 'subscribe':
@@ -123,6 +152,7 @@
             if (p) {
               p.pc.close();
               peers.delete(id);
+              report({ viewers: peers.size });
             }
             break;
           }
@@ -131,9 +161,7 @@
 
       async function createPeer(viewerId) {
         await ensureStream();
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-        });
+        const pc = new RTCPeerConnection(rtcConfig);
 
         // Canal de control: el visor manda mouse/teclado y presets por aqui.
         const channel = pc.createDataChannel('ctrl', { ordered: true });
@@ -148,10 +176,12 @@
           if (['failed', 'closed', 'disconnected'].includes(pc.connectionState)) {
             pc.close();
             peers.delete(viewerId);
+            report({ viewers: peers.size });
           }
         };
 
         peers.set(viewerId, { pc, channel });
+        report({ viewers: peers.size });
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);

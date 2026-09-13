@@ -1,12 +1,15 @@
 {
-  "name": "monitor-agent",
+  "name": "vela-agent",
   "version": "0.1.0",
   "private": true,
-  "description": "Agente de monitorizacion (captura de pantalla + soporte remoto) para estaciones Windows",
+  "description": "Vela: agente de supervision (captura de pantalla + soporte remoto) para estaciones Windows",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win --mac",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "icons": "node scripts/gen-icons.js"
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.0",
@@ -17,18 +20,61 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.tuempresa.monitoragent",
-    "productName": "MonitorAgent",
+    "appId": "com.vela.agent",
+    "productName": "Vela Agent",
+    "npmRebuild": false,
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-status.js",
+      "capture.html",
+      "status.html",
+      "assets/**",
+      "package.json"
+    ],
     "asarUnpack": [
       "node_modules/@nut-tree-fork/**"
     ],
     "win": {
-      "target": "nsis",
-      "artifactName": "MonitorAgent-Setup-${version}.${ext}"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "VelaAgent-Setup-${version}-win-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": true
-    }
+      "perMachine": true,
+      "runAfterFinish": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "artifactName": "VelaAgent-${version}-mac-${arch}.${ext}",
+      "identity": null,
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSScreenCaptureUsageDescription": "Vela captura la pantalla para la supervision de estaciones.",
+        "LSUIElement": true,
+        "NSAccessibilityUsageDescription": "Vela envia el raton y el teclado del soporte remoto a este equipo."
+      }
+    },
+    "publish": null,
+    "afterPack": "scripts/adhoc-sign.js"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
   }
 }
