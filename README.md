@@ -152,11 +152,15 @@ auditoría vive en `docs/reviews/alineacion-vela-2026-09-13.md`):
   resto se copia de Rosette), `index.ts` la compila con `CompileThemes`,
   `icons.tsx` es el registro tipado de iconos. Parte de los colores del tema
   `vela` del catálogo (lime + rose). Para probar otros colores cambia las
-  paletas en `_seed.ts`, mira el panel, y corre `pnpm brand`: vuelca los hex
-  (degradado de marca, escalas, superficies) a `brand/colors.json`, que es de
-  donde `agent/scripts/gen-icons.js` (`npm run icons`) genera el icono de la
-  app, los del tray y el CSS de la ventana del agente. Un solo origen para el
-  logo y el panel.
+  paletas en `_seed.ts`, mira el panel, y corre `pnpm brand`: vuelca los hex a
+  `brand/colors.json`, reescribe el degradado de `public/icon.svg` con
+  `from`/`to` de la semilla y rasteriza (con `sharp`) el favicon del panel
+  (`app/icon.svg`, `app/apple-icon.png`) y los iconos del agente (icono de app
+  para el instalador, cabecera de la ventana, tray de Windows y tray template
+  de macOS) más `agent/assets/brand.css`. Los SVG fuente son `public/icon.svg`
+  (glifo sobre placa), `public/tray.svg` (glifo solo) y `public/vela.svg`
+  (wordmark); `app/brand.tsx` los pinta en línea con las vars del tema. Un
+  solo origen para el logo y el panel.
 - `app/shell.tsx`: `AppShell` en carril (barra con marca, «Equipos», y tema e
   idioma en el pie). La conexión WebRTC vive en `lib/monitor-context.tsx`,
   dentro del armazón, para que navegar entre la rejilla y una ficha no

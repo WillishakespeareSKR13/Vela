@@ -1,13 +1,13 @@
-/* generado por scripts/gen-icons.js desde brand/colors.json — no editar */
+/* generado por dashboard/scripts/brand.mjs desde theme/_seed.ts — no editar */
 :root {
-  --brand-from: #89c300;
-  --brand-to: #f6668d;
+  --brand-from: #ffacdb;
+  --brand-to: #8125c0;
   --brand-angle: 100deg;
-  --primary-400: #97d600;
-  --primary-600: #557a00;
-  --accent-500: #df266a;
-  --surface: #0d1019;
-  --raised: #1a1c26;
+  --primary-400: #f173c0;
+  --primary-600: #ae007f;
+  --accent-500: #9e4fdf;
+  --surface: #0e101a;
+  --raised: #1b1c27;
   --text: #f6f7f8;
   --muted: #999fa6;
 }

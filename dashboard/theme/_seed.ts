@@ -7,11 +7,11 @@ import {
 
 export const SEED = {
   name: "vela",
-  primary: palettes.green,
-  accent: palettes.orange,
-  from: palettes.green["300"],
-  to: palettes.orange["500"],
-  tint: palettes.green["700"],
+  primary: palettes.pink,
+  accent: palettes.violet,
+  from: palettes.pink["300"],
+  to: palettes.violet["600"],
+  tint: palettes.pink["600"],
   wash: 0.009,
   lift: { base: -14, sunken: -8, raised: -6, overlay: -8 },
   glass: "sheer",

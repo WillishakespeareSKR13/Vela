@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Badge, Flex, Segment } from "@stellaria/nebula-web";
+import { Badge, Flex, Segment, Text } from "@stellaria/nebula-web";
 
 import { useMonitorContext } from "../lib/monitor-context";
 import type { Quality } from "../lib/useMonitor";
@@ -18,19 +18,30 @@ export function OnlineSubtitle({
     many: string;
     one: string;
     none: string;
-    status: { online: string; offline: string; unauthorized: string; connecting: string };
+    status: {
+      online: string;
+      offline: string;
+      unauthorized: string;
+      connecting: string;
+    };
   };
 }) {
   const { status, agents } = useMonitorContext();
   const n = agents.length;
-  const count = n === 0 ? labels.none : n === 1 ? labels.one : Fill(labels.many, { n });
-  const color = status === "online" ? "success" : status === "connecting" ? "gray" : "error";
+  const count =
+    n === 0 ? labels.none : n === 1 ? labels.one : Fill(labels.many, { n });
+  const color =
+    status === "online"
+      ? "success"
+      : status === "connecting"
+        ? "gray"
+        : "error";
   return (
-    <Flex align="center" gap="xs" component="span">
+    <Flex align="center" gap="md" component="span">
+      <Text fz="body2">{count}</Text>
       <Badge size="xs" variant="light" dot color={color}>
         {labels.status[status]}
       </Badge>
-      <span>{count}</span>
     </Flex>
   );
 }

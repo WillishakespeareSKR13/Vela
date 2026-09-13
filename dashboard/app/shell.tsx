@@ -30,7 +30,7 @@ import { SetLocale } from "../i18n/actions";
 import { LOCALES, type Locale } from "../i18n/locale";
 import { MonitorProvider, useMonitorContext } from "../lib/monitor-context";
 import { Icon } from "../theme/icons";
-import { Logo } from "./logo";
+import { Logo, Wordmark } from "./brand";
 
 export interface ShellLabels {
   brand: string;
@@ -81,14 +81,21 @@ export function Shell({
         }}
         backdrop={<Backdrop />}
         sidebarCollapsed={mini}
-        mainProps={{ direction: "column", overflow: "hidden", position: "relative" }}
+        mainProps={{
+          direction: "column",
+          overflow: "hidden",
+          position: "relative",
+        }}
         sidebar={
           <AppShell.Sidebar
             activeMode="pathname"
             pathname={pathname}
             collapsed={mini}
             onCollapse={setMini}
-            collapseLabels={{ collapse: labels.collapse, expand: labels.expand }}
+            collapseLabels={{
+              collapse: labels.collapse,
+              expand: labels.expand,
+            }}
             toggleProps={{ display: { base: "none", laptop: "block" } }}
             aria-label={labels.navigation}
           >
@@ -96,20 +103,19 @@ export function Shell({
               <Flex
                 component={Link}
                 href="/"
-                align="center"
-                gap="sm"
+                gap="xs"
                 display={{ base: "none", tablet: "flex" }}
                 c="text.primary"
                 td="none"
               >
                 <Logo size={30} />
                 <AppShell.Label>
-                  <Text fw="semibold" fz="body2" truncate>
-                    {labels.brand}
-                  </Text>
-                  <Text c="text.muted" fz="caption">
-                    {labels.descriptor}
-                  </Text>
+                  <Flex direction="column" gap="xxs" c="text.primary">
+                    <Wordmark height={14} title={labels.brand} />
+                    <Text c="text.muted" fz="caption">
+                      {labels.descriptor}
+                    </Text>
+                  </Flex>
                 </AppShell.Label>
               </Flex>
             </AppShell.Sidebar.Header>
@@ -166,7 +172,13 @@ function OnlineCount() {
 
 // Tema e idioma viven en el pie de la barra, en un popover (docs/07 §6.2): en
 // el panel no hay dock flotante.
-function Preferences({ locale, labels }: { locale: Locale; labels: ShellLabels }) {
+function Preferences({
+  locale,
+  labels,
+}: {
+  locale: Locale;
+  labels: ShellLabels;
+}) {
   const { scheme, setTheme } = useTheme();
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -186,7 +198,11 @@ function Preferences({ locale, labels }: { locale: Locale; labels: ShellLabels }
       offset={16}
       padding="md"
       trigger={
-        <ActionIcon aria-label={labels.theme + " · " + labels.language} variant="ghost" size="lg">
+        <ActionIcon
+          aria-label={labels.theme + " · " + labels.language}
+          variant="ghost"
+          size="lg"
+        >
           <Icon name="settings" size={20} />
         </ActionIcon>
       }
@@ -215,7 +231,10 @@ function Preferences({ locale, labels }: { locale: Locale; labels: ShellLabels }
             value={locale}
             onChange={changeLocale}
             triggerProps={{ "aria-label": labels.language }}
-            data={LOCALES.map((l) => ({ value: l, label: labels.languages[l] }))}
+            data={LOCALES.map((l) => ({
+              value: l,
+              label: labels.languages[l],
+            }))}
           />
         </FormField>
       </Flex>

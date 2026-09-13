@@ -57,6 +57,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.3.0(@types/react@19.3.0)
+      sharp:
+        specifier: 0.33.5
+        version: 0.33.5
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -1868,22 +1871,18 @@ snapshots:
   color-convert@2.0.1:
     dependencies:
       color-name: 1.1.4
-    optional: true
 
-  color-name@1.1.4:
-    optional: true
+  color-name@1.1.4: {}
 
   color-string@1.9.1:
     dependencies:
       color-name: 1.1.4
       simple-swizzle: 0.2.4
-    optional: true
 
   color@4.2.3:
     dependencies:
       color-convert: 2.0.1
       color-string: 1.9.1
-    optional: true
 
   css-what@6.2.2: {}
 
@@ -1968,8 +1967,7 @@ snapshots:
 
   deepmerge@4.3.1: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   embla-carousel-react@8.6.0(react@19.0.0):
     dependencies:
@@ -2022,8 +2020,7 @@ snapshots:
 
   internmap@2.0.3: {}
 
-  is-arrayish@0.3.4:
-    optional: true
+  is-arrayish@0.3.4: {}
 
   jotai@2.20.3(@types/react@19.3.0)(react@19.0.0):
     optionalDependencies:
@@ -2310,8 +2307,7 @@ snapshots:
 
   scheduler@0.25.0: {}
 
-  semver@7.8.5:
-    optional: true
+  semver@7.8.5: {}
 
   server-only@0.0.1: {}
 
@@ -2340,12 +2336,10 @@ snapshots:
       '@img/sharp-wasm32': 0.33.5
       '@img/sharp-win32-ia32': 0.33.5
       '@img/sharp-win32-x64': 0.33.5
-    optional: true
 
   simple-swizzle@0.2.4:
     dependencies:
       is-arrayish: 0.3.4
-    optional: true
 
   source-map-js@1.2.1: {}
 

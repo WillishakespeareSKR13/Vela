@@ -11,7 +11,7 @@ export default async function Page() {
       label={t.equipos.title}
       title={t.equipos.title}
       actions={
-        <Flex gap="md">
+        <Flex gap="md" wrap="wrap">
           <OnlineSubtitle
             labels={{
               many: t.equipos.subtitle,

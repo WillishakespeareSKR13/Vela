@@ -247,6 +247,8 @@ function createStatusWindow() {
     fullscreenable: false,
     show: false,
     title: 'Vela Agent',
+    // En Windows/Linux la ventana lleva el icono de la app; en macOS lo pone el bundle.
+    icon: IS_MAC ? undefined : path.join(__dirname, 'assets', 'icon.png'),
     backgroundColor: '#161a1f',
     webPreferences: {
       preload: path.join(__dirname, 'preload-status.js'),
