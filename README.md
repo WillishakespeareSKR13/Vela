@@ -259,10 +259,15 @@ Dos servicios en un mismo proyecto, cada uno con su **Root Directory**:
 | Servicio | Root Directory | Variables |
 | --- | --- | --- |
 | `server` | `server` | `VELA_TOKEN` (obligatoria), `VELA_TURN_*` si hay TURN. `PORT` la pone Railway |
-| `dashboard` | `dashboard` | `NEXT_PUBLIC_SIGNALING_URL=wss://<dominio-del-server>`, `NEXT_PUBLIC_SIGNALING_TOKEN=<el mismo VELA_TOKEN>`, opcional `GITHUB_TOKEN` |
+| `dashboard` | `dashboard` | `NEXT_PUBLIC_SIGNALING_URL=wss://api.vela.stellaria.app` (el dominio del server), `NEXT_PUBLIC_SIGNALING_TOKEN=<el mismo VELA_TOKEN>`, opcional `GITHUB_TOKEN` |
 
-Cada carpeta trae su `railway.json` (builder, comando de arranque y
-healthcheck: `/health` en el server, `/robots.txt` en el dashboard).
+Cada carpeta trae su `railway.json` (comando de arranque y healthcheck:
+`/health` en el server, `/robots.txt` en el dashboard). El server se construye
+con Nixpacks; el **dashboard con su `Dockerfile`** (Node 22 + pnpm 11 instalado
+con npm): Nixpacks activa corepack al ver `packageManager` y el shim de pnpm 11
+revienta en Node 24 (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`). Las
+`NEXT_PUBLIC_*` llegan al build como `ARG` (Railway las pasa solas si el
+Dockerfile las declara).
 
 1. Crea el servicio `server` desde el repo, Root Directory `server`, añade
    `VELA_TOKEN` y genera un dominio público (Settings → Networking). Railway
