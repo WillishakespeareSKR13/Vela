@@ -107,7 +107,13 @@
         </div>
         <p class="hint">
           Se abre Ajustes del Sistema → Privacidad y seguridad. Marca «Vela Agent» y vuelve: esta
-          ventana se actualiza sola. Si ya estaba marcado, quítalo y vuelve a marcarlo.
+          ventana se actualiza sola.
+        </p>
+        <p class="hint">
+          ¿Aparece marcado en Ajustes pero aquí sigue pendiente? Tras reinstalar, macOS conserva la
+          entrada de la versión anterior y no vale para esta.
+          <button id="reset-perms" class="ghost sm">Restablecer permisos</button>
+          y vuelve a concederlos.
         </p>
       </section>
 
@@ -177,6 +183,7 @@
       window.statusAPI.onState(render);
       $('perm-screen').onclick = () => window.statusAPI.requestPermission('screen');
       $('perm-acc').onclick = () => window.statusAPI.requestPermission('accessibility');
+      $('reset-perms').onclick = () => window.statusAPI.resetPermissions();
       $('open-config').onclick = () => window.statusAPI.openConfig();
       $('hide').onclick = () => window.statusAPI.hide();
       $('quit').onclick = () => window.statusAPI.quit();

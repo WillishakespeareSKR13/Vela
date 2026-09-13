@@ -73,9 +73,13 @@ const env = (name, key, fallback) =>
 // Servidor por defecto: produccion. Asi el instalador sale apuntando bien y
 // solo hace falta el token; en desarrollo se pone VELA_SERVER=ws://localhost:8080.
 const DEFAULT_SERVER = 'wss://api.vela.stellaria.app';
+// Token por defecto (decision del propietario, 2026-09-13): el instalador sale
+// listo sin escribir config.json. Cualquiera con el instalador puede registrar
+// equipos; si el token se filtra, se rota aqui y en el servidor.
+const DEFAULT_TOKEN = 'fd89a4c9ac8d87a70834f0b5e06667dc3fcd2c8ea668cb34806f5d87ba1a2e67';
 const SERVER_URL = env('SERVER', 'server', process.env.MONITOR_SERVER || DEFAULT_SERVER);
 const PC_NAME = env('NAME', 'name', os.hostname());
-const TOKEN = env('TOKEN', 'token', '');
+const TOKEN = env('TOKEN', 'token', DEFAULT_TOKEN);
 const SHOW_INDICATOR = /^(1|true|yes|on)$/i.test(env('SHOW_INDICATOR', 'showIndicator', ''));
 
 if (!TOKEN) {
@@ -298,9 +302,27 @@ setInterval(() => {
   if (statusWin && !statusWin.isDestroyed() && statusWin.isVisible()) publishState({});
 }, 2000);
 
+// macOS ata cada permiso a la FIRMA de la app. Con firma ad-hoc (sin Developer
+// ID) cada build firma distinto: la entrada «Vela Agent» sigue marcada en
+// Ajustes pero ya no vale para el binario nuevo, y el permiso sale como no
+// concedido. `tccutil reset` borra esa entrada vieja para que la nueva
+// peticion la vuelva a crear bien. Solo toca las entradas de esta app.
+function resetPermission(service) {
+  if (!IS_MAC) return;
+  try {
+    require('child_process').execFileSync('/usr/bin/tccutil', ['reset', service, 'com.vela.agent'], {
+      stdio: 'ignore',
+      timeout: 5000,
+    });
+  } catch (err) {
+    console.warn('[vela] tccutil reset', service, err.message);
+  }
+}
+
 async function requestPermission(kind) {
   if (!IS_MAC) return;
   if (kind === 'screen') {
+    if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') resetPermission('ScreenCapture');
     // Pedir fuentes dispara el aviso del sistema la primera vez; despues, el panel.
     try {
       await desktopCapturer.getSources({ types: ['screen'] });
@@ -311,9 +333,16 @@ async function requestPermission(kind) {
       shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
     }
   } else if (kind === 'accessibility') {
+    if (!systemPreferences.isTrustedAccessibilityClient(false)) resetPermission('Accessibility');
     systemPreferences.isTrustedAccessibilityClient(true);
     shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
   }
+  publishState({});
+}
+
+function resetAllPermissions() {
+  resetPermission('ScreenCapture');
+  resetPermission('Accessibility');
   publishState({});
 }
 
@@ -467,6 +496,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('status-hide', () => hideStatusWindow());
     ipcMain.on('status-open-config', () => openConfigFolder());
     ipcMain.on('status-permission', (_e, kind) => requestPermission(kind));
+    ipcMain.on('status-reset-permissions', () => resetAllPermissions());
     ipcMain.on('status-quit', () => {
       app.isQuitting = true;
       app.quit();

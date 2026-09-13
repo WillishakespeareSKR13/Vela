@@ -101,7 +101,7 @@ antiguas):
 | Variable | Por defecto | Qué hace |
 | --- | --- | --- |
 | `VELA_SERVER` | `wss://api.vela.stellaria.app` | URL del servidor de señalización (en desarrollo, `ws://localhost:8080`) |
-| `VELA_TOKEN` | — | Token compartido (el mismo que `VELA_TOKEN` del servidor) |
+| `VELA_TOKEN` | el de producción, embebido | Token compartido (el mismo que `VELA_TOKEN` del servidor); se rota en `main.js` y en el servidor |
 | `VELA_NAME` | hostname | Nombre que se ve en el dashboard |
 | `VELA_SHOW_INDICATOR` | `0` | `1` muestra el aviso en pantalla al controlar |
 
@@ -239,6 +239,13 @@ tray; el icono del tray abre/oculta la ventana con clic izquierdo y con clic
 derecho da el menú (estado, carpeta de configuración, registro, iniciar con la
 sesión, salir). Cerrar la ventana no cierra el agente. En macOS la app no tiene
 icono en el Dock (`LSUIElement`): vive en la barra de menús.
+
+**Permisos tras reinstalar.** macOS ata Grabación de pantalla y Accesibilidad
+a la firma de la app; con firma ad-hoc cada build firma distinto, así que tras
+reinstalar la entrada «Vela Agent» sigue marcada en Ajustes pero no vale para
+el binario nuevo (aparece como pendiente). El botón «Conceder» limpia antes esa
+entrada (`tccutil reset <servicio> com.vela.agent`) y la ventana tiene además
+«Restablecer permisos». Con Developer ID esto desaparece.
 
 El `.app` de macOS va **firmado ad-hoc** (`scripts/adhoc-sign.js`, afterPack):
 sin eso, en Apple Silicon un binario sin firma no arranca. Gatekeeper sigue

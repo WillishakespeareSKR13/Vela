@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('statusAPI', {
     return () => ipcRenderer.removeListener('state', handler);
   },
   requestPermission: (kind) => ipcRenderer.send('status-permission', kind),
+  resetPermissions: () => ipcRenderer.send('status-reset-permissions'),
   hide: () => ipcRenderer.send('status-hide'),
   openConfig: () => ipcRenderer.send('status-open-config'),
   quit: () => ipcRenderer.send('status-quit'),
