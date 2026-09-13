@@ -1,0 +1,16 @@
+/* Reset propio, en una capa declarada ANTES que las de Nebula (ver N1 §Fase 2).
+   El CSS sin capa gana siempre al CSS en capa, asi que el reset va en @layer. */
+@layer legacy;
+
+@layer legacy {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+  }
+}

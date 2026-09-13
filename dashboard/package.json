@@ -1,0 +1,27 @@
+{
+  "name": "stellaria-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@fontsource-variable/geist": "^5.1.0",
+    "@fontsource-variable/geist-mono": "^5.1.0",
+    "@stellaria/nebula-web": "1.0.0",
+    "@stellaria/nebula-themes": "1.0.0",
+    "@stellaria/nebula-tokens": "1.0.0",
+    "@vanilla-extract/dynamic": "^2.1.2",
+    "next": "15.1.6",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
