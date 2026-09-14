@@ -73,6 +73,20 @@
       button.sm { padding: 6px 10px; font-size: 12px; }
       .ok { color: var(--primary-400); font-weight: 600; font-size: 12px; }
       .hint { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+      .hint button.link { display: inline; padding: 0; background: none; color: var(--primary-400); font-size: 12px; }
+      label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+      input {
+        width: 100%; font: inherit; font-size: 13px; color: var(--text);
+        background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px; padding: 8px 10px; outline: none;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      input:focus { border-color: var(--primary-400); }
+      .field { position: relative; }
+      .field input { padding-right: 64px; }
+      .field button.eye { position: absolute; right: 6px; top: 4px; padding: 4px 8px; font-size: 11px; }
+      .actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+      .saved { color: var(--primary-400); font-size: 12px; }
       footer { display: flex; justify-content: space-between; gap: 8px; padding: 14px 20px 18px; }
       [hidden] { display: none !important; }
     </style>
@@ -106,36 +120,47 @@
           <button id="perm-acc" class="primary sm">Conceder</button>
         </div>
         <p class="hint">
-          Se abre Ajustes del Sistema → Privacidad y seguridad. Marca «Vela Agent» y vuelve: esta
-          ventana se actualiza sola.
+          «Conceder» muestra el aviso de macOS; desde ahí se abre Ajustes del Sistema. Marca
+          «Vela Agent» y vuelve: esta ventana se actualiza sola. Si el aviso no sale, abre a mano
+          <button id="pane-screen" class="link">Grabación de pantalla</button> o
+          <button id="pane-acc" class="link">Accesibilidad</button>.
         </p>
         <p class="hint">
           ¿Aparece marcado en Ajustes pero aquí sigue pendiente? Tras reinstalar, macOS conserva la
-          entrada de la versión anterior y no vale para esta.
-          <button id="reset-perms" class="ghost sm">Restablecer permisos</button>
-          y vuelve a concederlos.
+          entrada de la versión anterior y no vale para esta:
+          <button id="reset-perms" class="link">restablecer permisos</button> y volver a conceder.
         </p>
       </section>
 
       <section>
         <h2>Conexión</h2>
         <div class="row"><span class="k">Estado</span><span id="conn" class="pill connecting">conectando</span></div>
-        <div class="row"><span class="k">Servidor</span><span id="server" class="v">—</span></div>
-        <div class="row"><span class="k">Este equipo</span><span id="name" class="v">—</span></div>
-        <div class="row"><span class="k">Token</span><span id="token" class="v">—</span></div>
         <div class="row"><span class="k">Visores conectados</span><span id="viewers" class="v">0</span></div>
         <p id="token-hint" class="hint" hidden>
-          Sin token el servidor rechaza el registro. Escribe <code>config.json</code> (abajo) con el
-          token del panel y reinicia el agente.
+          Sin token el servidor rechaza el registro: escríbelo abajo y guarda.
         </p>
       </section>
 
       <section>
         <h2>Configuración</h2>
-        <div class="row">
-          <span id="config" class="v" style="text-align: left"></span>
-          <button id="open-config" class="sm">Abrir carpeta</button>
-        </div>
+        <form id="cfg" autocomplete="off">
+          <label for="f-server">Servidor de señalización</label>
+          <input id="f-server" name="server" placeholder="wss://api.vela.stellaria.app" spellcheck="false" />
+          <label for="f-token">Token</label>
+          <div class="field">
+            <input id="f-token" name="token" type="password" spellcheck="false" />
+            <button id="eye" type="button" class="ghost eye">ver</button>
+          </div>
+          <label for="f-name">Nombre de este equipo</label>
+          <input id="f-name" name="name" placeholder="Recepcion-01" />
+          <div class="actions">
+            <span id="saved" class="saved"></span>
+            <span>
+              <button id="open-config" type="button" class="ghost sm">Abrir carpeta</button>
+              <button id="save" type="submit" class="sm">Guardar y reconectar</button>
+            </span>
+          </div>
+        </form>
         <p class="hint">
           Este equipo puede ser supervisado y controlado desde el panel de Vela mientras el agente
           está en marcha. El agente no se oculta: vive en la barra de menús / bandeja del sistema.
@@ -162,12 +187,14 @@
         $('meta').textContent = `v${s.version} · ${s.platform === 'darwin' ? 'macOS' : s.platform === 'win32' ? 'Windows' : s.platform}`;
         $('conn').textContent = LABELS[s.connection] || s.connection;
         $('conn').className = 'pill ' + s.connection;
-        $('server').textContent = s.server;
-        $('name').textContent = s.name;
-        $('token').textContent = s.hasToken ? '••••••••' : 'sin token';
         $('token-hint').hidden = s.hasToken;
         $('viewers').textContent = String(s.viewers || 0);
-        $('config').textContent = s.configFile;
+        // El formulario solo se rellena si el usuario no esta editando.
+        if (!dirty) {
+          $('f-server').value = s.server || '';
+          $('f-token').value = s.token || '';
+          $('f-name').value = s.name || '';
+        }
 
         const mac = s.platform === 'darwin';
         $('perms').hidden = !mac;
@@ -178,6 +205,27 @@
           $('perm-acc-ok').hidden = !s.permissions.accessibility;
         }
       }
+
+      let dirty = false;
+      for (const id of ['f-server', 'f-token', 'f-name']) $(id).addEventListener('input', () => (dirty = true));
+      $('eye').onclick = () => {
+        const t = $('f-token');
+        t.type = t.type === 'password' ? 'text' : 'password';
+        $('eye').textContent = t.type === 'password' ? 'ver' : 'ocultar';
+      };
+      $('cfg').onsubmit = async (e) => {
+        e.preventDefault();
+        const r = await window.statusAPI.saveConfig({
+          server: $('f-server').value,
+          token: $('f-token').value,
+          name: $('f-name').value,
+        });
+        dirty = false;
+        $('saved').textContent = r && r.ok ? 'Guardado, reconectando…' : 'No se pudo guardar';
+        setTimeout(() => ($('saved').textContent = ''), 4000);
+      };
+      $('pane-screen').onclick = () => window.statusAPI.openPane('screen');
+      $('pane-acc').onclick = () => window.statusAPI.openPane('accessibility');
 
       window.statusAPI.get().then(render);
       window.statusAPI.onState(render);

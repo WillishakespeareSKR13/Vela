@@ -77,9 +77,10 @@ const DEFAULT_SERVER = 'wss://api.vela.stellaria.app';
 // listo sin escribir config.json. Cualquiera con el instalador puede registrar
 // equipos; si el token se filtra, se rota aqui y en el servidor.
 const DEFAULT_TOKEN = 'fd89a4c9ac8d87a70834f0b5e06667dc3fcd2c8ea668cb34806f5d87ba1a2e67';
-const SERVER_URL = env('SERVER', 'server', process.env.MONITOR_SERVER || DEFAULT_SERVER);
-const PC_NAME = env('NAME', 'name', os.hostname());
-const TOKEN = env('TOKEN', 'token', DEFAULT_TOKEN);
+// `let`: la ventana de estado puede cambiarlos en caliente (saveConfig).
+let SERVER_URL = env('SERVER', 'server', process.env.MONITOR_SERVER || DEFAULT_SERVER);
+let PC_NAME = env('NAME', 'name', os.hostname());
+let TOKEN = env('TOKEN', 'token', DEFAULT_TOKEN);
 const SHOW_INDICATOR = /^(1|true|yes|on)$/i.test(env('SHOW_INDICATOR', 'showIndicator', ''));
 
 if (!TOKEN) {
@@ -101,6 +102,7 @@ const state = {
   version: app.getVersion(),
   server: SERVER_URL,
   name: PC_NAME,
+  token: TOKEN,
   hasToken: !!TOKEN,
   configFile: FILE_CONFIG.file,
   connection: 'connecting', // connecting | online | offline | unauthorized
@@ -117,7 +119,7 @@ function readPermissions() {
 }
 
 function publishState(patch) {
-  Object.assign(state, patch);
+  Object.assign(state, patch, { server: SERVER_URL, name: PC_NAME, token: TOKEN, hasToken: !!TOKEN });
   state.permissions = readPermissions();
   if (statusWin && !statusWin.isDestroyed()) statusWin.webContents.send('state', state);
   if (tray) {
@@ -232,12 +234,42 @@ function createCaptureWindow() {
       backgroundThrottling: false,
     },
   });
-  const q =
+  captureWin.loadFile(path.join(__dirname, 'capture.html'), { search: captureQuery() });
+}
+
+function captureQuery() {
+  return (
     `?server=${encodeURIComponent(SERVER_URL)}` +
     `&name=${encodeURIComponent(PC_NAME)}` +
     `&token=${encodeURIComponent(TOKEN)}` +
-    `&indicator=${SHOW_INDICATOR ? '1' : '0'}`;
-  captureWin.loadFile(path.join(__dirname, 'capture.html'), { search: q });
+    `&indicator=${SHOW_INDICATOR ? '1' : '0'}`
+  );
+}
+
+// Guarda servidor/token/nombre en config.json y reconecta sin reiniciar: el
+// renderer de captura se recarga con la nueva query (cierra sus peers solo).
+function saveConfig(input) {
+  const next = {
+    server: String(input.server || '').trim() || DEFAULT_SERVER,
+    token: String(input.token || '').trim(),
+    name: String(input.name || '').trim() || os.hostname(),
+  };
+  let current = {};
+  try {
+    if (fs.existsSync(FILE_CONFIG.file)) current = JSON.parse(fs.readFileSync(FILE_CONFIG.file, 'utf8'));
+  } catch {
+    /* se sobrescribe */
+  }
+  fs.mkdirSync(path.dirname(FILE_CONFIG.file), { recursive: true });
+  fs.writeFileSync(FILE_CONFIG.file, JSON.stringify({ ...current, ...next, showIndicator: SHOW_INDICATOR }, null, 2));
+  SERVER_URL = next.server;
+  TOKEN = next.token;
+  PC_NAME = next.name;
+  if (captureWin && !captureWin.isDestroyed()) {
+    captureWin.loadFile(path.join(__dirname, 'capture.html'), { search: captureQuery() });
+  }
+  publishState({ connection: 'connecting', viewers: 0 });
+  return { ok: true, file: FILE_CONFIG.file };
 }
 
 // Ventana de estado y permisos. Es la unica ventana visible del agente: la
@@ -247,7 +279,7 @@ function createStatusWindow() {
   if (statusWin && !statusWin.isDestroyed()) return statusWin;
   statusWin = new BrowserWindow({
     width: 440,
-    height: 560,
+    height: 760,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -319,25 +351,37 @@ function resetPermission(service) {
   }
 }
 
+// Un solo aviso por clic: macOS muestra su propio dialogo («Abrir Ajustes del
+// Sistema») la primera vez que se pide un permiso, asi que el panel de Ajustes
+// solo se abre a mano cuando ese dialogo ya no va a salir (permiso denegado).
 async function requestPermission(kind) {
   if (!IS_MAC) return;
   if (kind === 'screen') {
-    if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') resetPermission('ScreenCapture');
-    // Pedir fuentes dispara el aviso del sistema la primera vez; despues, el panel.
+    const before = systemPreferences.getMediaAccessStatus('screen');
+    if (before === 'granted') return publishState({});
+    resetPermission('ScreenCapture');
+    // Pedir fuentes dispara el aviso del sistema.
     try {
       await desktopCapturer.getSources({ types: ['screen'] });
     } catch {
       /* noop */
     }
-    if (systemPreferences.getMediaAccessStatus('screen') !== 'granted') {
+    if (systemPreferences.getMediaAccessStatus('screen') === 'denied') {
       shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
     }
   } else if (kind === 'accessibility') {
-    if (!systemPreferences.isTrustedAccessibilityClient(false)) resetPermission('Accessibility');
+    if (systemPreferences.isTrustedAccessibilityClient(false)) return publishState({});
+    resetPermission('Accessibility');
+    // `true` muestra el dialogo del sistema con el boton de abrir Ajustes.
     systemPreferences.isTrustedAccessibilityClient(true);
-    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
   }
   publishState({});
+}
+
+function openPermissionPane(kind) {
+  if (!IS_MAC) return;
+  const pane = kind === 'screen' ? 'Privacy_ScreenCapture' : 'Privacy_Accessibility';
+  shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${pane}`);
 }
 
 function resetAllPermissions() {
@@ -497,6 +541,8 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('status-open-config', () => openConfigFolder());
     ipcMain.on('status-permission', (_e, kind) => requestPermission(kind));
     ipcMain.on('status-reset-permissions', () => resetAllPermissions());
+    ipcMain.on('status-open-pane', (_e, kind) => openPermissionPane(kind));
+    ipcMain.handle('status-save-config', (_e, input) => saveConfig(input || {}));
     ipcMain.on('status-quit', () => {
       app.isQuitting = true;
       app.quit();
