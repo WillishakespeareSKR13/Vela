@@ -65,10 +65,14 @@ function readConfigFile() {
 }
 
 const FILE_CONFIG = readConfigFile();
-const env = (name, key, fallback) =>
-  process.env['VELA_' + name] ??
-  process.env['STELLARIA_' + name] ??
-  (FILE_CONFIG[key] !== undefined && FILE_CONFIG[key] !== null ? String(FILE_CONFIG[key]) : fallback);
+// Un valor vacio (en el entorno o en el fichero) no cuenta: cae al siguiente.
+const present = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+const env = (name, key, fallback) => {
+  for (const v of [process.env['VELA_' + name], process.env['STELLARIA_' + name], FILE_CONFIG[key]]) {
+    if (present(v)) return String(v).trim();
+  }
+  return fallback;
+};
 
 // Servidor por defecto: produccion. Asi el instalador sale apuntando bien y
 // solo hace falta el token; en desarrollo se pone VELA_SERVER=ws://localhost:8080.
@@ -251,7 +255,7 @@ function captureQuery() {
 function saveConfig(input) {
   const next = {
     server: String(input.server || '').trim() || DEFAULT_SERVER,
-    token: String(input.token || '').trim(),
+    token: String(input.token || '').trim() || DEFAULT_TOKEN,
     name: String(input.name || '').trim() || os.hostname(),
   };
   let current = {};
